@@ -1,6 +1,6 @@
 from abc import ABC
 from typing import Dict, Any, Optional, Callable, List, Type
-from utils.logging_setup import logger
+from common.utils.logging_setup import logger
 from functools import lru_cache
 import inspect
 import types

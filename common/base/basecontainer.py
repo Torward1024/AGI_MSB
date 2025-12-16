@@ -2,9 +2,8 @@
 from abc import ABC
 from copy import deepcopy
 from typing import Dict, TypeVar, Generic, Any, Optional, List, Iterator, Union, get_type_hints, get_args, get_origin
-import importlib
-from base.baseentity import BaseEntity
-from utils.logging_setup import logger
+from common.base.baseentity import BaseEntity
+from common.utils.logging_setup import logger
 
 T = TypeVar('T', bound=BaseEntity)
 
@@ -563,18 +562,11 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
                 type_name = type_hint.__forward_arg__
                 resolved = globals().get(type_name)
                 if resolved is None:
-                    try:
-                        package = cls.__module__.rsplit('.', 1)[0]
-                        module = importlib.import_module(f"{package}.{type_name.lower()}")
-                        resolved = getattr(module, type_name)
-                    except (ImportError, AttributeError):
-                        pass
+                    from inspect import getmodule
+                    module = getmodule(cls)
+                    resolved = getattr(module, type_name, None) if module else None
                     if resolved is None:
-                        from inspect import getmodule
-                        module = getmodule(cls)
-                        resolved = getattr(module, type_name, None) if module else None
-                        if resolved is None:
-                            raise TypeError(f"Cannot resolve forward reference '{type_name}' for {field_path or cls.__name__}")
+                        raise TypeError(f"Cannot resolve forward reference '{type_name}' for {field_path or cls.__name__}")
                 if hasattr(resolved, '_fields'):
                     for field, field_type in resolved._fields.items():
                         try:
@@ -587,24 +579,11 @@ class BaseContainer(BaseEntity, ABC, Generic[T]):
             if isinstance(type_hint, str):
                 resolved = globals().get(type_hint)
                 if resolved is None:
-                    try:
-                        module = importlib.import_module(cls.__module__)
-                        resolved = getattr(module, type_hint, None)
-                    except (ImportError, AttributeError):
-                        pass
+                    from inspect import getmodule
+                    module = getmodule(cls)
+                    resolved = getattr(module, type_hint, None) if module else None
                     if resolved is None:
-                        try:
-                            package = cls.__module__.rsplit('.', 1)[0]
-                            module = importlib.import_module(f"{package}.{type_hint.lower()}")
-                            resolved = getattr(module, type_hint)
-                        except (ImportError, AttributeError):
-                            pass
-                    if resolved is None:
-                        from inspect import getmodule
-                        module = getmodule(cls)
-                        resolved = getattr(module, type_hint, None) if module else None
-                        if resolved is None:
-                            raise TypeError(f"Cannot resolve type hint '{type_hint}' for {field_path or cls.__name__}")
+                        raise TypeError(f"Cannot resolve type hint '{type_hint}' for {field_path or cls.__name__}")
                 cls._type_cache[type_hint] = resolved
                 return resolved
 

@@ -1,3 +1,5 @@
+.code-workspace
+
 # Игнорировать папку vs/, создаваемую Visual Studio
 .vs/
 
@@ -22,4 +24,8 @@ FileContentIndex/
 __pycache__/
 *.py[cod]
 *$py.class
+
+pastrocore.spec
+build/
+dist/
 docs/
