@@ -1,4 +1,4 @@
-# Fractal Graph AI Architecture for AGI (fractal_ai_design.md)
+# Fractal Graph AI Architecture for AGI
 
 ## Overview
 This document describes an extended fractal graph-based AI architecture designed to achieve real AGI capabilities, overcoming the limitations of current LLMs (sequential processing, vanishing/exploding gradients, rigidity, massive parameter counts, and inefficient resource use).
