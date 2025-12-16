@@ -1,96 +1,141 @@
-# Фрактальная Графовая Архитектура ИИ (Fractal Graph AI Architecture)
+# Fractal Graph AI Architecture for AGI (fractal_ai_design.md)
 
-## Обзор
-На основе анализа MSB архитектуры, предлагается фрактальная графовая архитектура ИИ, вдохновленная человеческим мозгом. Архитектура состоит из вершин (мини-нейронных сетей), связей между ними, иерархических уровней с самоподобием, и оркестрируемого манипулятора. Поддерживает параллелизм, самообучение, динамическое расширение и распределение знаний.
+## Overview
+This document describes an extended fractal graph-based AI architecture designed to achieve real AGI capabilities, overcoming the limitations of current LLMs (sequential processing, vanishing/exploding gradients, rigidity, massive parameter counts, and inefficient resource use).
 
-## Основные Компоненты
+The system is inspired by the human neocortex: hierarchical, self-similar graphs composed of "columns" (mini-neural networks as nodes). It enables full parallelism during training and inference, autonomous self-learning, dynamic graph expansion, distributed knowledge/memory, and optimal sub-graph routing per query.
 
-### 1. Вершина (Node)
-Каждая вершина представляет собой мини-нейронную сеть ("столбец"), аналогичную колонке в неокортексе.
-- **Мини-нейронная сеть**: Слой нейронов для обработки входных данных, обучения и инференса.
-- **Память**: Хранение знаний, опыта и паттернов. Включает долгосрочную память (знания) и краткосрочную (активные состояния).
-- **Интерфейсы**: Входы/выходы для связей с другими вершинами.
-- **Аналогия с мозгом**: Вершина как зона мозга, ответственная за конкретные функции (зрение, язык и т.д.).
+Key advantages over LLMs/MoE/HRM:
+- No fixed sequential layers — parallel message passing across graph.
+- No gradient flow issues — local learning in nodes + distributed RL.
+- Dynamic topology — system grows/prunes nodes and clusters on demand.
+- Efficient scaling — responsibility and memory distributed fractally.
+- True self-evolution — detects knowledge gaps and adapts autonomously.
 
-### 2. Связи (Edges)
-- **Типы**: Экзитаторные (возбуждающие), ингибиторные (тормозящие), нейтральные.
-- **Веса**: Динамически адаптируемые на основе обучения.
-- **Топология**: Графовая структура с кластерами (зоны как полушария мозга).
+The architecture is built on top of the existing MSB framework:
+- Nodes → `BaseEntity` subclasses
+- Clusters → `BaseContainer` subclasses
+- Full graph → `Project` subclass
+- Orchestration → extended `Manipulator` with neural Orchestrator (GNN)
 
-### 3. Уровни Иерархии (Hierarchical Levels)
-Фрактальность обеспечивается самоподобием на уровнях:
-- **Микро-уровень**: Индивидуальные вершины и их связи.
-- **Мезо-уровень**: Кластеры вершин (зоны).
-- **Макро-уровень**: Полный граф как мозг.
+## Core Components
 
-Каждый уровень может содержать подграфы, аналогичные полному графу.
+### 1. Node (Column) — `NodeEntity`
+Analogous to a neocortical minicolumn.
+- **Mini-Neural Network**: Configurable small network (MLP or lightweight Transformer, 3–5 layers).
+- **Long-term Memory**: Vector database (FAISS) storing patterns, experiences, embeddings.
+- **Confidence Assessor**: Small MLP evaluating how well the node can handle a given input (output: confidence score 0–1).
+- **Interfaces**: Tensor inputs/outputs for message passing.
+- **Self-Learning**: Local backpropagation + reinforcement learning (reward signal from global performance).
+- **Knowledge Compression**: Autoencoder for sharing subsets of memory/weights.
 
-### 4. Манипулятор (Manipulator)
-Оркестрирует систему:
-- Создание/удаление вершин.
-- Обучение и инференс.
-- Распределение знаний.
-- Оптимизация топологии.
+### 2. Edge — `EdgeEntity`
+- **Types**: Excitatory, Inhibitory, Neutral.
+- **Adaptive Weights**: Updated via Hebbian rules or RL feedback.
+- **Metadata**: Routing priority, knowledge diffusion bandwidth.
 
-### 5. Механизмы Параллелизма
-- Асинхронное обучение: Вершины обучаются параллельно.
-- Распределенные вычисления: Использование кластеров для масштабирования.
-- Инференс: Параллельная обработка запросов.
+### 3. Hierarchical Levels (Fractal Self-Similarity)
+- **Micro-level**: Individual nodes and local connections.
+- **Meso-level**: Clusters of nodes forming specialized zones (e.g., language, vision, reasoning).
+- **Macro-level**: Entire graph representing the full AGI "brain".
+- **Recursion**: Each cluster is itself a fractal graph (ClusterContainer can contain sub-Clusters).
 
-### 6. Самообучение
-- **Адаптация связей**: Обратное распространение и reinforcement learning.
-- **Динамическое создание вершин**: Кластеризация входных паттернов.
-- **Эволюционные алгоритмы**: Оптимизация топологии графа.
+### 4. Manipulator — `AGIManipulator` (Orchestrator)
+Central controller extended with a neural Orchestrator:
+- **Orchestrator NN**: Graph Neural Network (GNN) that receives:
+  - Query embedding
+  - Current graph state embedding
+  - Outputs: optimal routing path, growth signal (bool + location), knowledge-sharing commands.
+- **Operations**:
+  - Create/delete nodes and edges
+  - Trigger parallel learning
+  - Manage knowledge diffusion
+  - Optimize topology via evolutionary algorithms
+- **MSB Integration**: Registers custom `Super` classes (e.g., `GrowthSuper`, `RoutingSuper`, `SharingSuper`).
 
-## Взаимодействия
-- **Обучение**: Входные данные передаются через граф, вершины обучаются, связи адаптируются.
-- **Инференс**: Запросы обрабатываются параллельно, результаты агрегируются.
-- **Распределение знаний**: Манипулятор копирует знания между вершинами.
-- **Динамическое расширение**: Новые вершины создаются на основе паттернов.
+### 5. Parallelism & Scalability
+- **Framework**: Ray for distributed actors (each node can be an actor).
+- **Graph Ops**: DGL for efficient message passing.
+- **Training**: Asynchronous local updates + periodic global synchronization.
 
-## Диаграммы
+### 6. Self-Learning Mechanisms
+- **Local Learning**: Backpropagation + Adam in each node.
+- **Global RL**: PPO or similar using query success/efficiency as reward.
+- **Dynamic Growth**:
+  - Accumulate inputs with low average confidence.
+  - Run unsupervised clustering (DBSCAN) on embeddings.
+  - If new large cluster detected → spawn new node initialized via distillation from nearest neighbors.
+- **Evolutionary Optimization**: Periodic mutation/addition/removal of nodes/edges evaluated by fitness (task performance, latency).
 
-### Общая Архитектура
+### 7. Knowledge Distribution
+- **Diffusion Protocol**:
+  - Nodes periodically broadcast compressed knowledge (autoencoder embeddings).
+  - Neighbors decide acceptance based on relevance.
+  - Manipulator resolves conflicts and approves large transfers.
+- **Triggers**: Low confidence, Orchestrator command, or periodic schedule.
+
+## Query Processing Pipeline
+1. **Vectorization** — SentenceTransformer or similar → query embedding.
+2. **Orchestration** — Orchestrator NN predicts routing, possible growth, sharing.
+3. **Propagation** — Parallel message passing along predicted path (DGL + Ray).
+4. **Aggregation** — Attention-based combiner or simple mean of node outputs.
+5. **De-vectorization** — Decoder NN (fine-tuned transformer) → natural language response.
+
+## Diagrams
+
+### Overall Architecture
 ```mermaid
 graph TD
-    A[Манипулятор] --> B[Граф ИИ]
-    B --> C[Макро-уровень]
-    C --> D[Мезо-уровень]
-    D --> E[Микро-уровень]
-    E --> F[Вершина 1]
-    E --> G[Вершина 2]
-    F --> H[Мини-нейронная сеть]
-    F --> I[Память]
-    F --> J[Интерфейсы]
-```
+    A[User Query] --> B[Vectorizer NN]
+    B --> C[AGIManipulator (Orchestrator GNN)]
+    C --> D[Fractal Graph]
+    D --> E[Macro-Level]
+    E --> F[Meso-Cluster Language]
+    E --> G[Meso-Cluster Reasoning]
+    F --> H[Micro-Node 1]
+    F --> I[Micro-Node 2]
+    H --> J[Mini-NN + Memory + Confidence NN]
+    D --> K[Ray Parallelism]
+    K --> L[Aggregator NN]
+    L --> M[De-Vectorizer NN]
+    M --> N[Response]
+    C --> O[Growth Decision → New Node/Cluster]
+    C --> P[Sharing Commands]
+    H --> Q[Knowledge Diffusion]
 
-### Структура Вершины
+### Node Internal Structure
 ```mermaid
 graph TD
-    A[Вершина] --> B[Мини-нейронная сеть]
-    A --> C[Память]
-    A --> D[Интерфейсы]
-    B --> E[Входы]
-    B --> F[Выходы]
-    C --> G[Знания]
-    C --> H[Опыт]
-    D --> I[Связи с другими вершинами]
-```
+    A[NodeEntity] --> B[Mini-Neural Network]
+    A --> C[FAISS Memory]
+    A --> D[Confidence Assessor NN]
+    A --> E[Autoencoder (Compression)]
+    B --> F[Forward Pass]
+    B --> G[Local Learning]
+    D --> H[Confidence Score]
 
-### Иерархия Уровней
+### Fractal Hierarchy
 ```mermaid
 graph TD
-    A[Макро-граф] --> B[Мезо-кластер 1]
-    A --> C[Мезо-кластер 2]
-    B --> D[Микро-вершина 1.1]
-    B --> E[Микро-вершина 1.2]
-    C --> F[Микро-вершина 2.1]
-    C --> G[Микро-вершина 2.2]
-    D --> H[Подграф аналогичный макро]
-```
+    A[Macro Graph] --> B[Meso Cluster A]
+    A --> C[Meso Cluster B]
+    B --> D[Micro Node A1]
+    B --> E[Micro Node A2 (contains sub-graph)]
+    E --> F[Sub-Micro Node A2.1]
 
-## Рекомендации по Реализации
-- **Библиотеки**: PyTorch для нейронных сетей, DGL для графовых операций, Ray для параллелизма.
-- **Интеграция с MSB**: Использовать BaseEntity для вершин, BaseContainer для кластеров, Manipulator для оркестрации.
-- **Тестирование**: Unit tests для вершин, integration tests для графа, benchmarks для производительности и масштабируемости.
-- **Развертывание**: Начать с малого графа, постепенно расширять. Мониторить ресурсы для параллелизма.
+## Implementation 
+
+Core Libraries:
+- PyTorch (neural networks)
+- DGL (graph operations & message passing)
+- Ray (distributed parallelism)
+- FAISS (vector memory)
+- scikit-learn (clustering for growth)
+- DEAP (evolutionary topology optimization)
+- SentenceTransformers / HuggingFace (vectorization & decoding)
+
+MSB Integration:
+- NodeEntity → extends BaseEntity
+- ClusterContainer → extends BaseContainer[NodeEntity]
+- GraphProject → extends Project
+- Custom Super classes registered in AGIManipulator
