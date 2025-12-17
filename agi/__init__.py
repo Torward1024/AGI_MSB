@@ -17,6 +17,13 @@ from agi.edgeentity import (
     LearningRule
 )
 
+from agi.knowledgechunk import (
+    KnowledgeChunk,
+    CompressionMethod,
+    KnowledgeStatus,
+    SemanticMetadata
+)
+
 __all__ = [
     # Node components
     'NodeEntity',
@@ -28,5 +35,11 @@ __all__ = [
     # Edge components
     'EdgeEntity',
     'ConnectionType',
-    'LearningRule'
+    'LearningRule',
+    
+    # Knowledge components
+    'KnowledgeChunk',
+    'CompressionMethod',
+    'KnowledgeStatus',
+    'SemanticMetadata'
 ]
