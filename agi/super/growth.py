@@ -2,6 +2,10 @@
 from common.super.super import Super
 from typing import Dict, Any
 from agi.node import NodeEntity
+<<<<<<< HEAD
+=======
+from agi.cluster import ClusterContainer
+>>>>>>> 2036bf4596f2ed47ea30843494bba4825968da31
 from common.utils.logging_setup import logger
 import torch
 
@@ -21,9 +25,13 @@ class GrowthSuper(Super):
         return self._default_result(node)
 
     def _growth_clustercontainer(self, cluster, attributes: Dict[str, Any]) -> Dict[str, Any]:
+<<<<<<< HEAD
         """Create a new NodeEntity inside a ClusterContainer."""
         from agi.cluster import ClusterContainer
         
+=======
+        """Create a new NodeEntity inside a ClusterContainer."""       
+>>>>>>> 2036bf4596f2ed47ea30843494bba4825968da31
         name = attributes.get("name")
         if not name:
             raise ValueError("Growth requires 'name' for new node")
