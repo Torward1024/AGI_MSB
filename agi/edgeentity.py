@@ -729,7 +729,7 @@ class EdgeEntity(BaseEntity):
         strength = self.get_connection_strength()
         return (
             f"EdgeEntity(name='{self.name}', "
-            f"source='{self.source_node}'→'{self.target_node}', "
+            f"source='{self.source_node}'->'{self.target_node}', "
             f"weight={self.weight:.3f}, "
             f"type={self.connection_type}, "
             f"strength={strength:.3f}, "

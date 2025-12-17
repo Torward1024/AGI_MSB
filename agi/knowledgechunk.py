@@ -362,7 +362,7 @@ class KnowledgeChunk(BaseEntity):
         self.last_updated = datetime.now()
         
         logger.debug(f"KnowledgeChunk '{self.name}' validated by '{validation_source}', "
-                    f"confidence: {old_confidence:.3f}→{self.confidence_score:.3f}")
+                    f"confidence: {old_confidence:.3f}->{self.confidence_score:.3f}")
         
         return {
             "chunk_id": self.name,
@@ -593,7 +593,7 @@ class KnowledgeChunk(BaseEntity):
         compression_ratio = old_size / self.encoded_size if self.encoded_size > 0 else 1.0
         
         logger.debug(f"Compressed '{self.name}' with {method}: "
-                    f"{old_size}→{self.encoded_size} bytes, "
+                    f"{old_size}->{self.encoded_size} bytes, "
                     f"ratio={compression_ratio:.2f}")
         
         return {
