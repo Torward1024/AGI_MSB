@@ -1,5 +1,5 @@
 # agi/project.py
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from common.super.project import Project
 from agi.cluster import ClusterContainer
 from common.utils.logging_setup import logger
@@ -22,8 +22,8 @@ class GraphProject(Project):
             name (str): Project name.
             items (Dict[str, ClusterContainer], optional): Initial clusters.
         """
-        super().__init__(name=name, items=items)
-        logger.debug(f"Initialized GraphProject '{name}'")
+        super().__init__(name=name, items=items or {})
+        logger.debug(f"Initialized GraphProject '{name}' with {len(items or {})} clusters")
 
     def create_item(self, cluster_name: str, isactive: bool = True) -> None:
         """Create and add a new ClusterContainer.
@@ -36,7 +36,16 @@ class GraphProject(Project):
         self.add_item(cluster)
         logger.info(f"Created cluster '{cluster_name}' in project '{self.name}'")
 
-    # Additional methods for global AGI operations can be added here, e.g., global_growth, global_sharing
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize project to dict."""
+        data = super().to_dict()
+        return data
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'GraphProject':
+        """Deserialize project from dict."""
+        items = {k: ClusterContainer.from_dict(v) for k, v in data["items"].items()}
+        return cls(name=data["name"], items=items)
 
     def clear(self) -> None:
         """Clear all clusters and resources."""

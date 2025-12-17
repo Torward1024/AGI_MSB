@@ -2,9 +2,11 @@
 from typing import Dict, Any, Optional
 from common.base.baseentity import BaseEntity
 from common.utils.logging_setup import logger
-import torch.nn as nn
-import faiss
 import torch
+import torch.nn as nn
+import numpy as np
+from agi.memory import SimpleVectorMemory
+import random
 
 class NodeEntity(BaseEntity):
     """Represents a mini-neural network column in the fractal AGI graph.
@@ -15,17 +17,12 @@ class NodeEntity(BaseEntity):
 
     Attributes:
         nn_model (nn.Module): The mini-neural network for input processing.
-        memory (faiss.Index): Vector database for storing patterns and knowledge.
+        memory (SimpleVectorMemory): Vector store for patterns and knowledge.
         confidence_nn (nn.Module): Small NN to assess confidence in handling inputs.
         level (int): Hierarchical level (0 for micro, higher for meso/macro).
-
-    Notes:
-        - nn_model is built dynamically from a config dictionary.
-        - Memory uses FAISS for efficient similarity search.
-        - Confidence NN is a simple MLP outputting a score between 0 and 1.
     """
     nn_model: nn.Module
-    memory: faiss.Index
+    memory: SimpleVectorMemory
     confidence_nn: nn.Module
     level: int
 
@@ -36,7 +33,7 @@ class NodeEntity(BaseEntity):
         Args:
             name (str, optional): Unique identifier for the node.
             nn_config (Dict[str, Any]): Configuration for building the mini-NN (e.g., {'layers': [128, 64], 'activation': 'relu'}).
-            memory_dim (int): Dimensionality for the FAISS vector index.
+            memory_dim (int): Dimensionality for the vector memory.
             level (int): Hierarchical level in the fractal graph.
             isactive (bool): Activation status.
 
@@ -47,7 +44,7 @@ class NodeEntity(BaseEntity):
         if memory_dim <= 0:
             raise ValueError("Memory dimension must be positive")
         self.nn_model = self._build_nn(nn_config)
-        self.memory = faiss.IndexFlatL2(memory_dim)
+        self.memory = SimpleVectorMemory(memory_dim)
         self.confidence_nn = nn.Sequential(
             nn.Linear(memory_dim, 64),
             nn.ReLU(),
@@ -100,7 +97,12 @@ class NodeEntity(BaseEntity):
         """
         with torch.no_grad():
             output = self.nn_model(input_tensor)
-        # Query memory for similar patterns (placeholder)
+        # Query memory for similar patterns
+        query_np = input_tensor.cpu().numpy()
+        nearest, _ = self.memory.search(query_np, k=1)
+        if nearest.size > 0:
+            refinement = torch.from_numpy(nearest[0])
+            output += refinement  # Simple addition for refinement
         return output
 
     def learn(self, input_tensor: torch.Tensor, target: torch.Tensor, reward: float = 0.0) -> float:
@@ -120,6 +122,8 @@ class NodeEntity(BaseEntity):
         loss = loss_fn(output, target) - reward
         loss.backward()
         optimizer.step()
+        # Add output to memory for future refinement
+        self.memory.add(output.detach().cpu().numpy())
         logger.debug(f"Node '{self.name}' learned with loss {loss.item()}")
         return loss.item()
 
@@ -149,17 +153,44 @@ class NodeEntity(BaseEntity):
         """
         if not 0 < subset_ratio <= 1:
             raise ValueError("Subset ratio must be between 0 and 1")
-        # Placeholder: Compress and transfer embeddings
-        logger.info(f"Shared {subset_ratio*100}% knowledge from '{self.name}' to '{other_node.name}'")
+        n_share = int(len(self.memory.vectors) * subset_ratio)
+        if n_share == 0:
+            logger.warning("No knowledge to share")
+            return
+        shared_indices = random.sample(range(len(self.memory.vectors)), n_share)
+        shared_vectors = [self.memory.vectors[i] for i in shared_indices]
+        for vec in shared_vectors:
+            other_node.memory.add(vec.numpy())
+        logger.info(f"Shared {n_share} embeddings from '{self.name}' to '{other_node.name}'")
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize node to dict for saving."""
+        data = super().to_dict()
+        data["nn_model"] = self.nn_model.state_dict()
+        data["confidence_nn"] = self.confidence_nn.state_dict()
+        data["memory_vectors"] = [v.tolist() for v in self.memory.get_all()]
+        data["level"] = self.level
+        return data
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'NodeEntity':
+        """Deserialize node from dict."""
+        nn_config = data.get("nn_config", {"layers": [128, 64], "activation": "relu"})  # Default if not saved
+        node = cls(name=data["name"], nn_config=nn_config, memory_dim=data.get("memory_dim", 128), level=data["level"])
+        node.nn_model.load_state_dict(data["nn_model"])
+        node.confidence_nn.load_state_dict(data["confidence_nn"])
+        node.memory.set_all([torch.tensor(v) for v in data["memory_vectors"]])
+        node.isactive = data["isactive"]
+        return node
 
     def clear(self) -> None:
         """Clear neural models and memory to release resources."""
         self.nn_model = None
         self.confidence_nn = None
-        self.memory = None
+        self.memory.clear()
         super().clear()
         logger.debug(f"Cleared NodeEntity '{self.name}'")
 
     def __repr__(self) -> str:
         """Return a string representation of the NodeEntity."""
-        return f"NodeEntity(name={self.name!r}, level={self.level}, isactive={self.isactive})"
+        return f"NodeEntity(name={self.name!r}, level={self.level}, isactive={self.isactive}, memory_size={len(self.memory.vectors)})"

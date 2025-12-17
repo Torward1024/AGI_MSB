@@ -5,9 +5,10 @@ from agi.project import GraphProject
 from agi.super.growth import GrowthSuper
 from agi.super.routing import RoutingSuper
 from agi.super.sharing import SharingSuper
+from agi.super.status import StatusSuper
+from agi.super.saveload import SaveLoadSuper
 from common.utils.logging_setup import logger
 import torch.nn as nn
-from dgl.nn import GraphConv
 import torch
 
 class AGIManipulator(Manipulator):
@@ -20,7 +21,7 @@ class AGIManipulator(Manipulator):
     def __init__(self, project: Optional[GraphProject] = None):
         from agi.node import NodeEntity
         from agi.cluster import ClusterContainer
-        
+
         base_classes: List[Type] = [GraphProject, ClusterContainer, NodeEntity]
         super().__init__(managing_object=project, base_classes=base_classes)
 
@@ -28,14 +29,16 @@ class AGIManipulator(Manipulator):
         self.register_operation(GrowthSuper(self), operation="growth")
         self.register_operation(RoutingSuper(self), operation="routing")
         self.register_operation(SharingSuper(self), operation="sharing")
+        self.register_operation(StatusSuper(self), operation="status")
+        self.register_operation(SaveLoadSuper(self), operation="saveload")
 
         self.orchestrator_nn = self._build_orchestrator_nn()
-        logger.info("AGIManipulator fully initialized with growth, routing, sharing operations")
+        logger.info("AGIManipulator fully initialized with growth, routing, sharing, status, saveload operations")
 
     def _build_orchestrator_nn(self) -> nn.Module:
-        """Build the Orchestrator GNN used by RoutingSuper."""
+        """Build the Orchestrator NN (now without GraphConv, using Linear for simplicity)."""
         return nn.Sequential(
-            GraphConv(256, 128),   # query_vec + graph_state = 256 dim
+            nn.Linear(256, 128),
             nn.ReLU(),
             nn.Linear(128, 64),
             nn.ReLU(),

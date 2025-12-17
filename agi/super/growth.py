@@ -2,10 +2,7 @@
 from common.super.super import Super
 from typing import Dict, Any
 from agi.node import NodeEntity
-<<<<<<< HEAD
-=======
 from agi.cluster import ClusterContainer
->>>>>>> 2036bf4596f2ed47ea30843494bba4825968da31
 from common.utils.logging_setup import logger
 import torch
 
@@ -21,24 +18,18 @@ class GrowthSuper(Super):
         super().__init__(manipulator=manipulator)
 
     def _growth_nodeentity(self, node: NodeEntity, attributes: Dict[str, Any]) -> Dict[str, Any]:
-        """Placeholder for node-specific growth – not used directly."""
+        """Node-specific growth – e.g., add sub-node if recursive."""
         return self._default_result(node)
 
     def _growth_clustercontainer(self, cluster, attributes: Dict[str, Any]) -> Dict[str, Any]:
-<<<<<<< HEAD
-        """Create a new NodeEntity inside a ClusterContainer."""
-        from agi.cluster import ClusterContainer
-        
-=======
         """Create a new NodeEntity inside a ClusterContainer."""       
->>>>>>> 2036bf4596f2ed47ea30843494bba4825968da31
         name = attributes.get("name")
         if not name:
             raise ValueError("Growth requires 'name' for new node")
         
         nn_config = attributes.get("nn_config", {"layers": [128, 64, 128], "activation": "relu"})
         memory_dim = attributes.get("memory_dim", 128)
-        level = attributes.get("level", cluster.subgraph.ndata.get('level', torch.tensor([0])).max().item() + 1)
+        level = attributes.get("level", max([n.level for n in cluster._items.values()] or [0]) + 1)
         
         new_node = NodeEntity(name=name, nn_config=nn_config, memory_dim=memory_dim, level=level)
         cluster.add(new_node)

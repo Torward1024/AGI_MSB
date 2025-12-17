@@ -17,13 +17,18 @@ class RoutingSuper(Super):
         if query_vec is None:
             raise ValueError("Routing requires 'query_vector'")
         
-        # Dummy graph state – in real impl aggregate node states
-        graph_state = torch.zeros(128)
+        # Aggregate graph state: mean of all node features (dummy)
+        all_features = []
+        for cluster in project._items.values():
+            for node in cluster._items.values():
+                all_features.append(torch.randn(128))  # Placeholder node features
+        graph_state = torch.mean(torch.stack(all_features), dim=0) if all_features else torch.zeros(128)
         
         manipulator = self._manipulator
-        preds = manipulator.orchestrator_nn(torch.cat([query_vec, graph_state]))
+        combined = torch.cat([query_vec, graph_state])
+        preds = manipulator.orchestrator_nn(combined.unsqueeze(0)).squeeze(0)
         
-        route = preds[0].sigmoid().tolist()  # placeholder path scores
+        route = preds[0].item()  # Simplified single score
         grow = preds[1].sigmoid().item() > 0.5
         share = preds[2].sigmoid().item() > 0.5
         

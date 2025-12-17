@@ -3,28 +3,23 @@ from typing import Dict, Any, Optional
 from common.base.basecontainer import BaseContainer
 from agi.node import NodeEntity
 from common.utils.logging_setup import logger
-from dgl import DGLGraph
-import dgl
+from agi.graph import SimpleGraph
 import torch
 
 class ClusterContainer(BaseContainer[NodeEntity]):
     """Manages a cluster of NodeEntities as a sub-graph in the fractal AGI.
 
-    Extends BaseContainer to include a DGLGraph for efficient graph operations,
+    Extends BaseContainer to include a SimpleGraph for graph operations,
     supporting addition of nodes/edges, propagation, and recursive sub-clusters.
 
     Attributes:
-        subgraph (DGLGraph): The DGL graph representing node connections.
-
-    Notes:
-        - Supports fractal recursion: Can contain sub-Clusters as nodes.
-        - Uses DGL for message passing and parallelism.
+        subgraph (SimpleGraph): The custom graph representing node connections.
     """
-    subgraph: DGLGraph
+    subgraph: SimpleGraph
 
     def __init__(self, *, name: str = None, items: Optional[Dict[str, NodeEntity]] = None,
                  isactive: bool = True, use_cache: bool = False):
-        """Initialize the ClusterContainer with an empty DGL graph.
+        """Initialize the ClusterContainer with an empty SimpleGraph.
 
         Args:
             name (str, optional): Cluster identifier.
@@ -32,12 +27,15 @@ class ClusterContainer(BaseContainer[NodeEntity]):
             isactive (bool): Activation status.
             use_cache (bool): Enable caching for to_dict.
         """
-        super().__init__(name=name, items=items, isactive=isactive, use_cache=use_cache)
-        self.subgraph = DGLGraph()
+        super().__init__(name=name, items=items or {}, isactive=isactive, use_cache=use_cache)
+        self.subgraph = SimpleGraph()
+        if items:
+            for name, node in items.items():
+                self.add(node)
         logger.debug(f"Initialized ClusterContainer '{name}'")
 
     def add(self, item: NodeEntity) -> None:
-        """Add a NodeEntity and update the DGL graph.
+        """Add a NodeEntity and update the graph.
 
         Args:
             item (NodeEntity): Node to add.
@@ -46,8 +44,7 @@ class ClusterContainer(BaseContainer[NodeEntity]):
             ValueError: If item name already exists.
         """
         super().add(item)
-        node_id = len(self.subgraph.nodes())
-        self.subgraph.add_nodes(1, {'name': torch.tensor([item.name]), 'level': torch.tensor([item.level])})
+        self.subgraph.add_node(item.name, item.level)
         logger.debug(f"Added node '{item.name}' to cluster '{self.name}'")
 
     def add_edge(self, from_name: str, to_name: str, edge_type: str = 'neutral', weight: float = 1.0) -> None:
@@ -64,34 +61,36 @@ class ClusterContainer(BaseContainer[NodeEntity]):
         """
         if from_name not in self._items or to_name not in self._items:
             raise ValueError("Both nodes must exist in the cluster")
-        # Assuming node IDs are sequential
-        from_id = list(self._items.keys()).index(from_name)
-        to_id = list(self._items.keys()).index(to_name)
-        self.subgraph.add_edges(from_id, to_id, {'type': torch.tensor([edge_type]), 'weight': torch.tensor([weight])})
+        self.subgraph.add_edges(from_name, to_name, {'type': edge_type, 'weight': weight})
         logger.debug(f"Added edge from '{from_name}' to '{to_name}' in cluster '{self.name}'")
 
     def propagate(self, input_vector: torch.Tensor) -> Dict[str, torch.Tensor]:
-        """Propagate input through the sub-graph using message passing.
+        """Propagate input through the sub-graph using BFS message passing.
 
         Args:
             input_vector (torch.Tensor): Input embedding.
 
         Returns:
             Dict[str, torch.Tensor]: Outputs from each node.
-
-        Notes:
-            - Uses DGL message passing; placeholder for full implementation.
         """
-        # Placeholder: Simulate propagation
-        outputs = {}
-        for name, node in self._items.items():
-            outputs[name] = node.process_input(input_vector)
+        def process_fn(node_name: str, aggregated: torch.Tensor) -> torch.Tensor:
+            node = self._items[node_name]
+            return node.process_input(aggregated)
+
+        # Start from all root nodes (no incoming edges)
+        indegrees = {n: 0 for n in self.subgraph.nodes}
+        for edges in self.subgraph.edges.values():
+            for e in edges:
+                indegrees[e['dst']] += 1
+        start_nodes = [n for n, deg in indegrees.items() if deg == 0]
+
+        outputs = self.subgraph.propagate(start_nodes, input_vector, process_fn)
         logger.debug(f"Propagated input through cluster '{self.name}'")
         return outputs
 
     def clear(self) -> None:
         """Clear the sub-graph and nodes."""
-        self.subgraph = None
+        self.subgraph.clear()
         super().clear()
         logger.debug(f"Cleared ClusterContainer '{self.name}'")
 

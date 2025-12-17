@@ -16,10 +16,10 @@ class SharingSuper(Super):
         subset_ratio = attributes.get("subset_ratio", 0.5)
         
         cluster = self._manipulator.get_managing_object().get_item(attributes.get("cluster"))
-        if not cluster or target_name not in cluster:
+        if not cluster or target_name not in cluster._items:
             raise ValueError(f"Target node '{target_name}' not found")
         
-        target_node = cluster[target_name]
+        target_node = cluster._items[target_name]
         node.share_knowledge(target_node, subset_ratio)
         
         logger.info(f"SharingSuper transferred knowledge from '{node.name}' to '{target_name}'")
